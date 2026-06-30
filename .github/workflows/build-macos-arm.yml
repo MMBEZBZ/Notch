@@ -1,0 +1,49 @@
+name: Build macOS (Apple Silicon)
+
+# Builds an arm64 .app/.dmg on a real Apple Silicon runner (macos-14).
+# Trigger manually from the Actions tab, or automatically on a version tag.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build Notch.app (arm64)
+    runs-on: macos-14  # Apple Silicon (arm64) runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build .app and .dmg
+        env:
+          MAKE_DMG: "1"
+        run: bash packaging/macos/build_macos_arm.sh
+
+      - name: Zip .app
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "Notch.app" "Notch-arm64.zip"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notch-macos-arm64
+          path: |
+            dist/Notch-arm64.zip
+            dist/Notch-arm64.dmg
+          if-no-files-found: error
+
+      - name: Attach to release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Notch-arm64.zip
+            dist/Notch-arm64.dmg
