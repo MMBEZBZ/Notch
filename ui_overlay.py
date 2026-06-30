@@ -584,9 +584,20 @@ class NotchOverlay(QWidget):
 
     def __init__(self):
         super().__init__()
-        # When packaged as exe, look for model next to the executable
+        # When packaged as a frozen app, look for the speech model.
+        #   • Windows (PyInstaller onedir): next to the executable.
+        #   • macOS (.app bundle): next to the executable in Contents/MacOS.
+        #   • Fallback: PyInstaller-bundled copy via sys._MEIPASS (--add-data).
         if getattr(sys, "frozen", False):
-            self.MODEL_PATH = os.path.join(os.path.dirname(sys.executable), "model")
+            exe_dir_model = os.path.join(os.path.dirname(sys.executable), "model")
+            meipass = getattr(sys, "_MEIPASS", None)
+            bundled_model = os.path.join(meipass, "model") if meipass else None
+            if os.path.isdir(exe_dir_model):
+                self.MODEL_PATH = exe_dir_model
+            elif bundled_model and os.path.isdir(bundled_model):
+                self.MODEL_PATH = bundled_model
+            else:
+                self.MODEL_PATH = exe_dir_model  # report the expected location
             self._log_install_paths()
         else:
             self.MODEL_PATH = NotchOverlay.MODEL_PATH
